@@ -1,14 +1,14 @@
 module Lib where
 
-import Text.ParserCombinators.Parsec hiding ((<|>), many)
+import Text.Parsec.String
 import Control.Applicative
 import Control.Monad
 
 
-matchTrue :: Parser String
+matchTrue:: Parser String
 matchTrue = string "true"
 
-alwaysTrue :: Parser Bool
+alwaysTrue:: Parser Bool
 alwaysTrue = pure True
 
 boolTrue:: Parser Bool
