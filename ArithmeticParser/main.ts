@@ -28,7 +28,6 @@ class Parser extends Source {
         let token: string = ""
         let char: string
         while ((char = this.peek()) != null && this.isDigit(char)) {
-            console.log(char)
             token += parseInt(char)
             this.next()
         }
@@ -37,9 +36,18 @@ class Parser extends Source {
 
     public expr(): number {
         let x: number = this.number()
-        while (this.peek() === "+") {  // 構文解析と計算を分離せずにexprで処理しているのがポイント
-            this.next();
-            x += this.number()
+        while (true) {  // 構文解析と計算を分離せずにexprで処理しているのがポイント
+            switch (this.peek()) {
+                case "+":
+                    this.next()
+                    x += this.number()
+                    continue
+                case "-":
+                    this.next()
+                    x -= this.number()
+                    continue
+            }
+            break
         }
         return x
     }
@@ -58,4 +66,4 @@ class Main {
     }
 }
 
-Main.test("12+3+5")
+Main.test("12+3-5")
