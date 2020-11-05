@@ -57,7 +57,7 @@ class Parser extends Source {
     }
 }
 
-class Main {
+export class Main {
     public static test(args: string) {
         console.log(`${args} = ${this.parse(args)}`)
     }
