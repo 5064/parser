@@ -65,5 +65,3 @@ export class Main {
         return new Parser(args).expr()
     }
 }
-
-Main.test("12+3-5")
