@@ -34,6 +34,9 @@ class Parser extends Source {
         return parseInt(token)
     }
 
+    /**
+     * expr = term, {("+", term) | ("-", term)}
+     */
     public expr(): number {
         let x: number = this.term()
         while (true) {  // 構文解析と計算を分離せずにexprで処理しているのがポイント
@@ -53,6 +56,8 @@ class Parser extends Source {
     }
 
     /**
+     * term = number, {("*", number) | ("/", number)}
+     * 
      * 項の計算
      * exprより優先度が高い乗算,除算をする
      */

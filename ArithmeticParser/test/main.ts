@@ -1,4 +1,5 @@
-import * as assert from "chai";
+import { expect } from "chai";
+import { describe, it } from "mocha";
 import { Main } from "../src/main";
 
 describe("正常系", () => {
@@ -28,8 +29,8 @@ describe("正常系", () => {
             answer: 7
         },
         {
-            expr: "2*4/8",
-            answer: 1
+            expr: "1*2+3",
+            answer: 5
         },
         {
             expr: "2-4/8",
@@ -38,7 +39,7 @@ describe("正常系", () => {
     ]
     testcases.map((tc) => {
         it(`${tc.expr} = ${tc.answer}`, () => {
-            assert.expect(Main.parse(tc.expr)).to.equal(tc.answer);
+            expect(Main.parse(tc.expr)).to.equal(tc.answer);
         })
     })
 })
