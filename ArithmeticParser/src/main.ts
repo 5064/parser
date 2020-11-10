@@ -35,16 +35,38 @@ class Parser extends Source {
     }
 
     public expr(): number {
-        let x: number = this.number()
+        let x: number = this.term()
         while (true) {  // 構文解析と計算を分離せずにexprで処理しているのがポイント
             switch (this.peek()) {
                 case "+":
                     this.next()
-                    x += this.number()
+                    x += this.term()
                     continue
                 case "-":
                     this.next()
-                    x -= this.number()
+                    x -= this.term()
+                    continue
+            }
+            break
+        }
+        return x
+    }
+
+    /**
+     * 項の計算
+     * exprより優先度が高い乗算,除算をする
+     */
+    public term(): number {
+        let x: number = this.number()
+        while (true) {  // 構文解析と計算を分離せずにexprで処理しているのがポイント
+            switch (this.peek()) {
+                case "*":
+                    this.next()
+                    x *= this.number()
+                    continue
+                case "/":
+                    this.next()
+                    x /= this.number()
                     continue
             }
             break
@@ -58,9 +80,6 @@ class Parser extends Source {
 }
 
 export class Main {
-    public static test(args: string) {
-        console.log(`${args} = ${this.parse(args)}`)
-    }
     public static parse(args: string) {
         return new Parser(args).expr()
     }
