@@ -35,6 +35,7 @@ class Parser extends Source {
     }
 
     /**
+     * 式
      * expr = term, {("+", term) | ("-", term)}
      */
     public expr(): number {
@@ -56,9 +57,9 @@ class Parser extends Source {
     }
 
     /**
+     * 項
      * term = factor, {("*", factor) | ("/", factor)}
      * 
-     * 項の計算
      * exprより優先度が高い乗算,除算をする
      */
     public term(): number {
@@ -71,7 +72,11 @@ class Parser extends Source {
                     continue
                 case "/":
                     this.next()
-                    x /= this.factor()
+                    const f = this.factor()
+                    if (f === 0) {
+                        throw new ZeroDivisionError()
+                    }
+                    x /= f
                     continue
             }
             break
@@ -80,22 +85,36 @@ class Parser extends Source {
     }
 
     /**
-     * factor = ("(", expr, ")") | number
+     * 因子
+     * factor = ("(", expr, ")") | ("+" | "-"), factor | number
      * 
      * 括弧を実装するための因子(factor)層
      * 括弧の中はexprであるため、以下のように再帰が循環する
      * expr -> term -> factor -> expr -> ...
      */
     public factor(): number {
+        let x: number
+        this.spaces()
         if (this.peek() === '(') {
             this.next()
-            const ret: number = this.expr()
+            x = this.expr()
             if (this.peek() === ')') {
                 this.next()
             }
-            return ret
+        } else {
+            x = this.number()
         }
-        return this.number()
+        this.spaces()
+        return x
+    }
+
+    /**
+     * ignore spaces
+     */
+    public spaces(): void {
+        while (this.peek() === ' ') {
+            this.next()
+        }
     }
 
     /**
