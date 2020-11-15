@@ -6,7 +6,7 @@
   "author": "5064",
   "license": "MIT",
   "scripts": {
-    "test": "mocha --require ts-node-test-register 'test/**/*.ts'"
+    "test": "mocha --require ts-node-test-register '**/test/**/*.ts'"
   },
   "devDependencies": {
     "@tsconfig/node12": "^1.0.7",
