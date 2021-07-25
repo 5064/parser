@@ -1,6 +1,6 @@
 // パーサ関数の型
-type Parser = {
-    (s: Source): string
+type Parser<T> = {
+    (s: Source): T
 }
 
 class Parsers {
@@ -16,7 +16,7 @@ class Parsers {
     }
 
     // パーサを結合するコンビネータ
-    static sequence(...parsers: Parser[]): Parser {
+    static sequence(...parsers: Parser<any>[]): Parser<string> {
         return (s: Source) => {
             let result: string = ""
             for (const p of parsers) {
@@ -26,7 +26,7 @@ class Parsers {
         }
     }
     // 指定したパーサを0回以上適用して返すコンビネータ
-    static many(p: Parser) {
+    static many(p: Parser<any>) {
         return (s: Source) => {
             let result: string = ""
             // エラーになるまでparseする
@@ -39,23 +39,58 @@ class Parsers {
             return result
         }
     }
+    // 「または」を表現するコンビネータ
+    static or(p1: Parser<any>, p2: Parser<any>) {
+        return (s: Source) => {
+            let result: string = ""
 
-    static isDigit(s: string) {
-        return Number.isInteger(parseInt(s))
+            const backup: Source = s.clone()
+            try {
+                result = p1.call(undefined, s)
+            } catch (error) {
+                /** or(左, 右)として、左のパーサが内部で複数のパーサから構成されるとき、
+                 *  そのうち1つでも成功してその後で失敗したなら、
+                 *  右のパーサは処理されずにエラーにする
+                 */
+                if (!s.equals(backup)) {
+                    throw new Error("Not satisfy");
+                }
+                result = p2.call(undefined, s)
+            }
+            return result
+        }
     }
-    static isLetter(s: string) {
-        return Number.isNaN(parseInt(s))
+
+    static isDigit(char: string): boolean {
+        return Number.isInteger(parseInt(char))
+    }
+    static isLetter(char: string): boolean {
+        return Number.isNaN(parseInt(char))
+    }
+    static isAlphabet(char: string): boolean {
+        return /[a-zA-Z]/.test(char)
     }
 
-    static anyChar: any = Parsers.satisfy((s: string) => true)
-    static letter: any = Parsers.satisfy(Parsers.isLetter)
-    static digit: any = Parsers.satisfy(Parsers.isDigit)
+    static letter: Parser<string> = Parsers.satisfy(Parsers.isLetter)
+    static digit: Parser<string> = Parsers.satisfy(Parsers.isDigit)
+    static alpha: Parser<string> = Parsers.satisfy(Parsers.isAlphabet)
 
-    static char = (ch: string) => {
-        return Parsers.satisfy(c => c === ch)
+    // バックトラックするには対象となるパーサをtryPで囲む
+    static tryP(p: Parser<any>) {
+        return (s: Source) => {
+            let result = ""
+            const backup: Source = s.clone()
+            try {
+                result = p.call(undefined, s)
+            } catch (error) {
+                s.revert(backup)
+                throw error;
+            }
+            return result
+        }
     }
 
-    static parseTest(p: Parser, src: string) {
+    static parseTest(p: Parser<string>, src: string) {
         const s = new Source(src)
         try {
             console.log(p.call(undefined, s))
@@ -66,14 +101,10 @@ class Parsers {
     }
 
     static main(): void {
-        const se: Parser = this.sequence(this.letter, this.digit, this.digit)
-        this.parseTest(se, "abcd")
-        this.parseTest(se, "123")
-        this.parseTest(se, "a23")
-        this.parseTest(se, "a2345")
-        const many = this.many(this.digit)
-        this.parseTest(many, "abc123")
-        this.parseTest(many, "123abc")
+        const or: Parser<string> = this.or(this.tryP(this.sequence(this.digit, this.digit)), this.sequence(this.digit, this.alpha))
+
+        this.parseTest(or, "2!")
+        this.parseTest(or, "2A")
     }
 
 }
@@ -93,6 +124,29 @@ class Source {
 
     next(): void {
         ++this.pos
+    }
+
+    // パーサの状態を保持できるようにする
+    clone(): Source {
+        const source = new Source(this.s);
+        source.pos = this.pos;
+        return source;
+    }
+    // パーサの状態を比較できるようにする
+    equals(src: any): boolean {
+        if (!(src instanceof Source)) {
+            return false
+        } else {
+            return this.s === src.s && this.pos === src.pos
+        }
+    }
+    // パースに失敗したとき、状態を巻き戻して別の方法でパースをやり直す(バックトラック)
+    // Sourceの状態を元に戻せるようにする
+    revert(src: Source) {
+        if (!(this.s === src.s)) {
+            throw new Error("Can not revert");
+        }
+        this.pos = src.pos
     }
 }
 
