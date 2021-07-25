@@ -15,6 +15,36 @@ class Parsers {
         }
     }
 
+
+    // ParserFunctions
+    static isDigit(char: string): boolean {
+        return Number.isInteger(parseInt(char))
+    }
+    static isLetter(char: string): boolean {
+        return Number.isNaN(parseInt(char))
+    }
+    static isAlphabet(char: string): boolean {
+        return /[a-zA-Z]/.test(char)
+    }
+    static letterP: Parser<string> = Parsers.satisfy(Parsers.isLetter)
+    static digitP: Parser<string> = Parsers.satisfy(Parsers.isDigit)
+    static alphaP: Parser<string> = Parsers.satisfy(Parsers.isAlphabet)
+    // 引数と一致するか判定するParserを生成する（一文字）
+    static charP(arg: string): Parser<string> {
+        return Parsers.satisfy(char => char === arg)
+    }
+    // 引数と一致するか判定するParserを生成する（文字列）
+    static stringP(arg: string): Parser<string> {
+        return (s: Source) => {
+            for (const char of arg) {
+                this.charP(char).call(undefined, s)
+            }
+            return arg
+        }
+    }
+
+
+    // ParserCombinators
     // パーサを結合するコンビネータ
     static sequence(...parsers: Parser<any>[]): Parser<string> {
         return (s: Source) => {
@@ -26,7 +56,7 @@ class Parsers {
         }
     }
     // 指定したパーサを0回以上適用して返すコンビネータ
-    static many(p: Parser<any>) {
+    static many(p: Parser<any>): Parser<string> {
         return (s: Source) => {
             let result: string = ""
             // エラーになるまでparseする
@@ -40,18 +70,18 @@ class Parsers {
         }
     }
     // 「または」を表現するコンビネータ
-    static or(p1: Parser<any>, p2: Parser<any>) {
+    static or(p1: Parser<any>, p2: Parser<any>): Parser<string> {
         return (s: Source) => {
             let result: string = ""
 
             const backup: Source = s.clone()
+            /** or(左, 右)として、左のパーサが内部で複数のパーサから構成されるとき、
+             *  そのうち1つでも成功してその後で失敗したなら、
+             *  右のパーサは処理されずにエラーにする
+             */
             try {
                 result = p1.call(undefined, s)
             } catch (error) {
-                /** or(左, 右)として、左のパーサが内部で複数のパーサから構成されるとき、
-                 *  そのうち1つでも成功してその後で失敗したなら、
-                 *  右のパーサは処理されずにエラーにする
-                 */
                 if (!s.equals(backup)) {
                     throw new Error("Not satisfy");
                 }
@@ -61,20 +91,8 @@ class Parsers {
         }
     }
 
-    static isDigit(char: string): boolean {
-        return Number.isInteger(parseInt(char))
-    }
-    static isLetter(char: string): boolean {
-        return Number.isNaN(parseInt(char))
-    }
-    static isAlphabet(char: string): boolean {
-        return /[a-zA-Z]/.test(char)
-    }
 
-    static letter: Parser<string> = Parsers.satisfy(Parsers.isLetter)
-    static digit: Parser<string> = Parsers.satisfy(Parsers.isDigit)
-    static alpha: Parser<string> = Parsers.satisfy(Parsers.isAlphabet)
-
+    // Parserに対するtryのような関数
     // バックトラックするには対象となるパーサをtryPで囲む
     static tryP(p: Parser<any>) {
         return (s: Source) => {
@@ -90,6 +108,7 @@ class Parsers {
         }
     }
 
+
     static parseTest(p: Parser<string>, src: string) {
         const s = new Source(src)
         try {
@@ -101,10 +120,13 @@ class Parsers {
     }
 
     static main(): void {
-        const or: Parser<string> = this.or(this.tryP(this.sequence(this.digit, this.digit)), this.sequence(this.digit, this.alpha))
+        const or: Parser<string> = this.or(this.stringP("ab"), this.stringP("ac"))
+        const or2: Parser<string> = this.or(this.tryP(this.stringP("ab")), this.stringP("ac"))
 
-        this.parseTest(or, "2!")
-        this.parseTest(or, "2A")
+        this.parseTest(or, "ab")
+        this.parseTest(or, "ac")  // NG tryPが必要
+        this.parseTest(or2, "ab")
+        this.parseTest(or2, "ac")
     }
 
 }
