@@ -1,151 +1,176 @@
 // パーサ関数の型
 type Parser<T> = {
-    (s: Source): T
-}
+    (s: Source): T;
+};
 
 class Parsers {
     static satisfy = (f: Function) => {
         return (s: Source) => {
-            const ch: string = s.peek()
+            const ch: string = s.peek();
             if (!f.call(undefined, ch)) {
-                throw new Error("Not satisfy");
+                throw new Error(s.withPrefix("Not satisfy"));
             }
-            s.next()
-            return ch
-        }
-    }
-
+            s.next();
+            return ch;
+        };
+    };
 
     // ParserFunctions
     static isDigit(char: string): boolean {
-        return Number.isInteger(parseInt(char))
+        return Number.isInteger(parseInt(char));
     }
     static isLetter(char: string): boolean {
-        return Number.isNaN(parseInt(char))
+        return Number.isNaN(parseInt(char));
     }
     static isAlphabet(char: string): boolean {
-        return /[a-zA-Z]/.test(char)
+        return /[a-zA-Z]/.test(char);
     }
-    static letterP: Parser<string> = Parsers.satisfy(Parsers.isLetter)
-    static digitP: Parser<string> = Parsers.satisfy(Parsers.isDigit)
-    static alphaP: Parser<string> = Parsers.satisfy(Parsers.isAlphabet)
+    static letterP: Parser<string> = Parsers.or(
+        Parsers.satisfy(Parsers.isLetter),
+        Parsers.throwError("Not letter")
+    );
+    static digitP: Parser<string> = Parsers.or(
+        Parsers.satisfy(Parsers.isDigit),
+        Parsers.throwError("Not digit")
+    );
+    static alphaP: Parser<string> = Parsers.or(
+        Parsers.satisfy(Parsers.isAlphabet),
+        Parsers.throwError("Not alphabet")
+    );
     // 引数と一致するか判定するParserを生成する（一文字）
     static charP(arg: string): Parser<string> {
-        return Parsers.satisfy(char => char === arg)
+        return this.or(
+            this.satisfy((char) => char === arg),
+            this.throwError(`'${arg}' is expected, but given`)
+        );
     }
     // 引数と一致するか判定するParserを生成する（文字列）
     static stringP(arg: string): Parser<string> {
         return (s: Source) => {
             for (const char of arg) {
-                this.charP(char).call(undefined, s)
+                this.or(
+                    this.charP(char),
+                    this.throwError(`'${arg}' is expected, but given`)
+                ).call(undefined, s);
             }
-            return arg
-        }
+            return arg;
+        };
     }
-
 
     // ParserCombinators
     // パーサを結合するコンビネータ
     static sequence(...parsers: Parser<any>[]): Parser<string> {
         return (s: Source) => {
-            let result: string = ""
+            let result: string = "";
             for (const p of parsers) {
-                result += p.call(undefined, s)
+                result += p.call(undefined, s);
             }
-            return result
-        }
+            return result;
+        };
     }
     // 指定したパーサを0回以上適用して返すコンビネータ
     static many(p: Parser<any>): Parser<string> {
         return (s: Source) => {
-            let result: string = ""
+            let result: string = "";
             // エラーになるまでparseする
             try {
                 while (true) {
-                    result += p.call(undefined, s)
+                    result += p.call(undefined, s);
                 }
-            } catch (error) {
-            }
-            return result
-        }
+            } catch (error) {}
+            return result;
+        };
     }
     // 「または」を表現するコンビネータ
     static or(p1: Parser<any>, p2: Parser<any>): Parser<string> {
         return (s: Source) => {
-            let result: string = ""
+            let result: string = "";
 
-            const backup: Source = s.clone()
+            const backup: Source = s.clone();
             /** or(左, 右)として、左のパーサが内部で複数のパーサから構成されるとき、
              *  そのうち1つでも成功してその後で失敗したなら、
              *  右のパーサは処理されずにエラーにする
              */
             try {
-                result = p1.call(undefined, s)
+                result = p1.call(undefined, s);
             } catch (error) {
                 if (!s.equals(backup)) {
-                    throw new Error("Not satisfy");
+                    throw new Error(s.withPrefix("Not satisfy"));
                 }
-                result = p2.call(undefined, s)
+                result = p2.call(undefined, s);
             }
-            return result
-        }
+            return result;
+        };
     }
-
 
     // Parserに対するtryのような関数
     // バックトラックするには対象となるパーサをtryPで囲む
     static tryP(p: Parser<any>) {
         return (s: Source) => {
-            let result = ""
-            const backup: Source = s.clone()
+            let result = "";
+            const backup: Source = s.clone();
             try {
-                result = p.call(undefined, s)
+                result = p.call(undefined, s);
             } catch (error) {
-                s.revert(backup)
+                s.revert(backup);
                 throw error;
             }
-            return result
-        }
+            return result;
+        };
     }
 
+    // エラーを意図的にthrow
+    // 指定したメッセージでパースを失敗を確定させるときにorと使う
+    static throwError(message: string) {
+        return (s: Source) => {
+            throw new Error(s.withPrefix(message));
+        };
+    }
 
     static parseTest(p: Parser<string>, src: string) {
-        const s = new Source(src)
+        const s = new Source(src);
         try {
-            console.log(p.call(undefined, s))
+            console.log(p.call(undefined, s));
         } catch (error) {
-            console.log(error.message)
+            console.log(error.message);
         }
-
     }
 
     static main(): void {
-        const or: Parser<string> = this.or(this.stringP("ab"), this.stringP("ac"))
-        const or2: Parser<string> = this.or(this.tryP(this.stringP("ab")), this.stringP("ac"))
+        const or: Parser<string> = this.stringP("abc");
 
-        this.parseTest(or, "ab")
-        this.parseTest(or, "ac")  // NG tryPが必要
-        this.parseTest(or2, "ab")
-        this.parseTest(or2, "ac")
+        this.parseTest(or, "abd"); // NG
+        this.parseTest(or, "123");
     }
-
 }
 
 class Source {
-    private s: string
-    private pos: number
+    private s: string;
+    private pos: number;
+    private line: number; // for ErrorMessage
+    private charIndex: number; // for ErrorMessage
 
     constructor(s: string) {
-        this.s = s
-        this.pos = 0
+        this.s = s;
+        this.pos = 0;
+        this.line = 1;
+        this.charIndex = 1;
     }
 
     peek(): string {
-        return this.s[this.pos]
+        if (this.pos >= this.s.length) {
+            throw new Error(this.withPrefix("Too short"));
+        }
+        return this.s[this.pos];
     }
 
     next(): void {
-        ++this.pos
+        const char = this.peek();
+        if (char === "\n") {
+            ++this.line;
+        }
+        ++this.pos;
+        ++this.charIndex;
     }
 
     // パーサの状態を保持できるようにする
@@ -157,18 +182,26 @@ class Source {
     // パーサの状態を比較できるようにする
     equals(src: any): boolean {
         if (!(src instanceof Source)) {
-            return false
+            return false;
         } else {
-            return this.s === src.s && this.pos === src.pos
+            return this.s === src.s && this.pos === src.pos;
         }
     }
     // パースに失敗したとき、状態を巻き戻して別の方法でパースをやり直す(バックトラック)
     // Sourceの状態を元に戻せるようにする
-    revert(src: Source) {
+    revert(src: Source): void {
         if (!(this.s === src.s)) {
-            throw new Error("Can not revert");
+            throw new Error(this.withPrefix("Can not revert"));
         }
-        this.pos = src.pos
+        this.pos = src.pos;
+    }
+
+    withPrefix(error: string): string {
+        let message = `[line ${this.line}, position ${this.charIndex}] ${error}`;
+        if (this.s !== undefined && 0 <= this.pos && this.pos < this.s.length) {
+            message += `: '${this.s[this.pos]}'`;
+        }
+        return message;
     }
 }
 
@@ -180,4 +213,4 @@ export class ZeroDivisionError extends Error {
     }
 }
 
-Parsers.main()
+Parsers.main();
