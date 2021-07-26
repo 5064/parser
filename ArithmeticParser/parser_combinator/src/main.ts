@@ -29,10 +29,11 @@ class Parsers {
         Parsers.satisfy(Parsers.isLetter),
         Parsers.throwError("Not letter")
     );
-    static digitP: Parser<string> = Parsers.or(
+    static digitP: Parser<number> = Parsers.or(
         Parsers.satisfy(Parsers.isDigit),
         Parsers.throwError("Not digit")
     );
+    static numberP: Parser<number> = Parsers.many1(Parsers.digitP);
     static alphaP: Parser<string> = Parsers.or(
         Parsers.satisfy(Parsers.isAlphabet),
         Parsers.throwError("Not alphabet")
@@ -81,8 +82,12 @@ class Parsers {
             return result;
         };
     }
+    // 指定したパーサを1回以上適用して返すコンビネータ
+    static many1(p: Parser<any>): Parser<ReturnType<typeof p>> {
+        return this.sequence(p, this.many(p));
+    }
     // 「または」を表現するコンビネータ
-    static or(p1: Parser<any>, p2: Parser<any>): Parser<string> {
+    static or(p1: Parser<any>, p2: Parser<any>): Parser<any> {
         return (s: Source) => {
             let result: string = "";
 
@@ -121,13 +126,13 @@ class Parsers {
 
     // エラーを意図的にthrow
     // 指定したメッセージでパースを失敗を確定させるときにorと使う
-    static throwError(message: string) {
+    static throwError(message: string): Parser<unknown> {
         return (s: Source) => {
             throw new Error(s.withPrefix(message));
         };
     }
 
-    static parseTest(p: Parser<string>, src: string) {
+    static parseTest(p: Parser<unknown>, src: string) {
         const s = new Source(src);
         try {
             console.log(p.call(undefined, s));
@@ -137,10 +142,10 @@ class Parsers {
     }
 
     static main(): void {
-        const or: Parser<string> = this.stringP("abc");
+        const test: Parser<number> = this.numberP;
 
-        this.parseTest(or, "abd"); // NG
-        this.parseTest(or, "123");
+        this.parseTest(test, "abd"); // NG
+        this.parseTest(test, "123");
     }
 }
 
